@@ -1,15 +1,16 @@
 import numpy as np
 import pandas as pd
+from talib import EMA, SMA
 
 
-def supertrend_analysis(high, low, close, lookback, multiplier):
+def supertrend_analysis(high, low, close, look_back, multiplier):
     # ATR
     tr1 = pd.DataFrame(high - low)
     tr2 = pd.DataFrame(abs(high - close.shift(1)))
     tr3 = pd.DataFrame(abs(low - close.shift(1)))
     frames = [tr1, tr2, tr3]
     tr = pd.concat(frames, axis=1, join='inner').max(axis=1)
-    atr = tr.ewm(lookback).mean()
+    atr = tr.ewm(look_back).mean()
 
     # H/L AVG AND BASIC UPPER & LOWER BAND
     hl_avg = (high + low) / 2
@@ -42,7 +43,7 @@ def supertrend_analysis(high, low, close, lookback, multiplier):
 
     # SUPERTREND
 
-    supertrend = pd.DataFrame(columns=[f'supertrend_{lookback}'])
+    supertrend = pd.DataFrame(columns=[f'supertrend_{look_back}'])
     supertrend.iloc[:, 0] = [x for x in final_bands['upper'] - final_bands['upper']]
 
     for i in range(len(supertrend)):
@@ -117,5 +118,9 @@ def get_supertrend_signals(prices, st):
     return long_trigger, short_trigger, st_signal
 
 
-def calculate_sma_200(df: pd.DataFrame) -> pd.DataFrame:
-    return df.close.rolling(window=200).mean()
+def calculate_sma(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
+    return SMA(df.close, timeperiod=time_period)
+
+
+def calculate_ema(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
+    return EMA(df.close, timeperiod=time_period)

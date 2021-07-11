@@ -38,7 +38,7 @@ def str_to_datetime(str_days_ago: str) -> datetime.datetime:
         raise ValueError("Wrong Argument format")
 
 
-def interval_to_seconds(interval: str) -> int:
+def interval_to_seconds_converter(interval: str) -> int:
     value = int(interval[:-1])
     if interval.endswith("s"):
         return int(value)
@@ -89,7 +89,8 @@ class FtxClient:
         if self._subaccount_name:
             request.headers['FTX-SUBACCOUNT'] = urllib.parse.quote(self._subaccount_name)
 
-    def _process_response(self, response: Response) -> Any:
+    @staticmethod
+    def _process_response(response: Response) -> Any:
         try:
             data = response.json()
         except ValueError:
@@ -128,8 +129,8 @@ class FtxClient:
                           'end_time': end_time})
 
     def get_conditional_order_history(self, market: str = None, side: str = None, type: str = None,
-                                      order_type: str = None, start_time: float = None, end_time: float = None) -> List[
-        dict]:
+                                      order_type: str = None, start_time: float = None, end_time: float = None) \
+            -> List[dict]:
         return self._get(f'conditional_orders/history',
                          {'market': market, 'side': side, 'type': type, 'orderType': order_type,
                           'start_time': start_time, 'end_time': end_time})

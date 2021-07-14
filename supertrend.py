@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from talib import EMA, SMA
+from typing import Tuple
 
 
 def supertrend_analysis(high, low, close, look_back, multiplier):
@@ -124,3 +125,9 @@ def calculate_sma(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
 
 def calculate_ema(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
     return EMA(df.close, timeperiod=time_period)
+
+
+def take_profit_calc(close: float, profit_percent: float, precision: int) -> Tuple[float, float]:
+    long_profit = round(close + close * profit_percent/100, precision)
+    short_profit = round(close - close * profit_percent/100, precision)
+    return long_profit, short_profit

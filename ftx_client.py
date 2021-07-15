@@ -2,7 +2,7 @@ import datetime
 import hmac
 import time
 import urllib.parse
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 
 import pandas as pd
 from ciso8601 import parse_datetime
@@ -135,27 +135,6 @@ class FtxClient:
                          {'market': market, 'side': side, 'type': type, 'orderType': order_type,
                           'start_time': start_time, 'end_time': end_time})
 
-    def get_historical_market_data(self, market: str, interval: str, start_time: str) -> pd.DataFrame:
-        interval_to_seconds = {"15s": 15, "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400}
-
-        if interval in interval_to_seconds:
-            resolution = interval_to_seconds[interval]
-        else:
-            raise ValueError(f"Use a valid time interval: {interval_to_seconds.keys()}")
-
-        start_time = int(datetime.datetime.timestamp(str_to_datetime(start_time)))
-
-        data = self.get_historical_prices(market, resolution, start_time)
-
-        df = pd.DataFrame(columns=['time', 'open', 'high', 'low', 'close', 'volume'])
-
-        for idx, item in enumerate(data):
-            df.loc[idx] = [parser.parse(item["startTime"]), item["open"], item["high"], item["low"], item["close"],
-                           item["volume"]]
-
-        df = df.set_index("time")
-        return df
-
     def modify_order(
             self, existing_order_id: Optional[str] = None,
             existing_client_order_id: Optional[str] = None, price: Optional[float] = None,
@@ -255,3 +234,64 @@ class FtxClient:
             if len(response) < limit:
                 break
         return results
+
+    # Additional functions
+
+    def get_historical_market_data(self, market: str, interval: str, start_time: str) -> pd.DataFrame:
+        interval_to_seconds = {"15s": 15, "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400}
+
+        if interval in interval_to_seconds:
+            resolution = interval_to_seconds[interval]
+        else:
+            raise ValueError(f"Use a valid time interval: {interval_to_seconds.keys()}")
+
+        start_time = int(datetime.datetime.timestamp(str_to_datetime(start_time)))
+
+        data = self.get_historical_prices(market, resolution, start_time)
+
+        df = pd.DataFrame(columns=['time', 'open', 'high', 'low', 'close', 'volume'])
+
+        for idx, item in enumerate(data):
+            df.loc[idx] = [parser.parse(item["startTime"]), item["open"], item["high"], item["low"], item["close"],
+                           item["volume"]]
+
+        df = df.set_index("time")
+        return df
+
+    def check_open_position(self, market: str) -> dict:
+        position = self.get_position(market)
+        if position is not None:
+            if position["size"] != 0:
+                return position
+        return {}
+
+    def modify_trigger_order(self, order_id: str, size: float, trigger_price: float):
+        path = f"conditional_orders/{order_id}/modify"
+        return self._post(path, {
+            "triggerPrice": trigger_price,
+            "size": size
+        })
+
+    def update_stop_loss(self, market: str, stop_loss: float) -> float:
+        for trigger_order in self.get_conditional_orders(market):
+            if trigger_order["type"] == "stop":
+                response = self.modify_trigger_order(
+                    order_id=str(trigger_order["id"]),
+                    size=trigger_order["size"],
+                    trigger_price=stop_loss
+                )
+                return response["triggerPrice"]
+        return 0
+
+    def market_close_and_cancel_orders(self, market: str, side: str, size: float) -> Tuple[bool, dict]:
+        response = self.place_order(market, side=side, size=size, type="market", price=0)
+        self.cancel_orders(market, conditional_orders=True)
+
+        # Wait until position is closed
+        idx = 0
+        while self.check_open_position(market):
+            time.sleep(2)
+            idx += 1
+            if idx == 5:
+                return False, response
+        return True, response

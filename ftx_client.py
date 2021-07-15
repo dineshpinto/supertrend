@@ -275,12 +275,13 @@ class FtxClient:
     def update_stop_loss(self, market: str, stop_loss: float) -> float:
         for trigger_order in self.get_conditional_orders(market):
             if trigger_order["type"] == "stop":
-                response = self.modify_trigger_order(
-                    order_id=str(trigger_order["id"]),
-                    size=trigger_order["size"],
-                    trigger_price=stop_loss
-                )
-                return response["triggerPrice"]
+                if trigger_order["triggerPrice"] != stop_loss:
+                    response = self.modify_trigger_order(
+                        order_id=str(trigger_order["id"]),
+                        size=trigger_order["size"],
+                        trigger_price=stop_loss
+                    )
+                    return response["triggerPrice"]
         return 0
 
     def market_close_and_cancel_orders(self, market: str, side: str, size: float) -> Tuple[bool, dict]:

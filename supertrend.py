@@ -5,7 +5,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from talib import EMA, SMA, STOCHRSI
+from talib import EMA, SMA, STOCHRSI, RSI, STOCH
 
 FIGURE_PATH = "figures"
 
@@ -133,8 +133,10 @@ def calculate_ema(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
     return EMA(df.close, timeperiod=time_period)
 
 
-def calculate_stoch_rsi(df: pd.DataFrame) -> pd.DataFrame:
-    return STOCHRSI(df.close, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0)
+def calculate_stoch_rsi(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    rsi = RSI(df.close, timeperiod=14)
+    slowk, slowd = STOCH(rsi, rsi, rsi, fastk_period=3, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
+    return slowk, slowd
 
 
 def take_profit_calc(close: float, profit_percent: float, precision: int) -> Tuple[float, float]:
@@ -143,7 +145,7 @@ def take_profit_calc(close: float, profit_percent: float, precision: int) -> Tup
     return long_profit, short_profit
 
 
-def plot_and_save_figure(market: str, df: pd.DataFrame) -> str:
+def plot_and_save_figure(market: str, df: pd.DataFrame, folder: str) -> str:
     # Plot and save results
     fig, ax = plt.subplots()
     ax.plot(df.index, df.close, ".-", color="tab:blue")
@@ -158,7 +160,12 @@ def plot_and_save_figure(market: str, df: pd.DataFrame) -> str:
     ax.set_title(market)
     plt.close(fig)
     ax.legend()
-    figure_path = os.path.join(FIGURE_PATH, f"{market}.jpg")
+
+    folder_path = os.path.join(FIGURE_PATH, folder)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    figure_path = os.path.join(folder_path, f"{market}.jpg")
+
     fig.savefig(figure_path, dpi=300)
     return figure_path
 

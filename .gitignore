@@ -4,6 +4,8 @@ memes/
 config.py
 figures/
 Testing.ipynb
+*.json
+technical_trader.py
 
 # PyCharm
 .idea/

@@ -32,6 +32,8 @@ class TelegramBotManager:
         self.trades = []
         self.market = None
         self.send_msg("@supertrending_bot has started")
+        self.trades_1h_json = "trades_1h.json"
+        self.trades_4h_json = "trades_4h.json"
 
     def send_msg(self, msg: str):
         try:
@@ -82,11 +84,23 @@ class TelegramBotManager:
         update.message.reply_text('An error occurred bruh')
 
     def trade(self, update: Update, context: CallbackContext):
+        trades_1h, trades_4h = [], []
         try:
-            self.trades = json.load(open("trades.json"))
+            trades_1h = json.load(open(self.trades_1h_json))
         except Exception as exc:
-            update.message.reply_text('No new trades or was unable to load the json...')
+            update.message.reply_text(f'Unable to load {self.trades_1h_json}')
         else:
+            update.message.reply_text(f'Successfully loaded {self.trades_1h_json}')
+
+        try:
+            trades_4h = json.load(open(self.trades_4h_json))
+        except Exception as exc:
+            update.message.reply_text(f'Unable to load  {self.trades_4h_json}')
+        else:
+            update.message.reply_text(f'Successfully loaded {self.trades_4h_json}')
+
+        self.trades = trades_1h + trades_4h
+        if len(self.trades) > 0:
             self.start_getting_trade_info(update, context)
 
     def start_getting_trade_info(self, update: Update, _: CallbackContext):
@@ -123,7 +137,7 @@ class TelegramBotManager:
         global STATE
         update.message.reply_text(f'Executing trade with {self.market}...')
         for trade in reversed(self.trades):
-            if self.market in trade["market"] :
+            if self.market in trade["market"]:
                 update.message.reply_text("Trade executed: \n" + json.dumps(trade, indent=2, default=str))
         STATE = None
 

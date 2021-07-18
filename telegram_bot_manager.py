@@ -1,5 +1,5 @@
 import json
-from config import ST_TOKEN, ST_CHAT_ID
+import config
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from telegram import Update
 
@@ -13,8 +13,8 @@ class TelegramBotManager:
     def __init__(self):
         # create the updater, that will automatically create also a dispatcher and a queue to
         # make them dialogue
-        self._chat_id = ST_CHAT_ID
-        self._updater = Updater(token=ST_TOKEN, use_context=True)
+        self._chat_id = config.TELEGRAM_CHAT_ID
+        self._updater = Updater(token=config.TELEGRAM_TOKEN, use_context=True)
         self.dispatcher = self._updater.dispatcher
 
         # add handlers for start and help commands
@@ -72,18 +72,22 @@ class TelegramBotManager:
     def help(self, update: Update, _: CallbackContext):
         msg = "The following commands are avaiable:\n" \
               "/trade: Open a new trade\n" \
-              "/open_positions: Check open positions" \
+              "/open_positions: Check open positions\n" \
               "/help: This help page"
         self.send_msg(msg)
 
-    # function to handle errors occured in the dispatcher
+    # function to handle errors occurred in the dispatcher
     @staticmethod
     def error(update: Update, _: CallbackContext):
-        update.message.reply_text('An error occured bruh')
+        update.message.reply_text('An error occurred bruh')
 
     def trade(self, update: Update, context: CallbackContext):
-        self.trades = json.load(open("trade.json"))
-        self.start_getting_trade_info(update, context)
+        try:
+            self.trades = json.load(open("trades.json"))
+        except Exception as exc:
+            update.message.reply_text('No new trades or was unable to load the json...')
+        else:
+            self.start_getting_trade_info(update, context)
 
     def start_getting_trade_info(self, update: Update, _: CallbackContext):
         global STATE

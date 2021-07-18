@@ -5,7 +5,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from talib import EMA, SMA, STOCHRSI, RSI, STOCH
+from talib import EMA, SMA, RSI, STOCH
 
 FIGURE_PATH = "figures"
 
@@ -125,12 +125,12 @@ def get_supertrend_signals(prices, st):
     return long_trigger, short_trigger, st_signal
 
 
-def calculate_sma(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
-    return SMA(df.close, timeperiod=time_period)
+def calculate_sma(df: pd.Series, time_period: int = 200) -> pd.Series:
+    return SMA(df, timeperiod=time_period)
 
 
-def calculate_ema(df: pd.DataFrame, time_period: int = 200) -> pd.DataFrame:
-    return EMA(df.close, timeperiod=time_period)
+def calculate_ema(df: pd.Series, time_period: int = 200) -> pd.Series:
+    return EMA(df, timeperiod=time_period)
 
 
 def calculate_stoch_rsi(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -147,13 +147,16 @@ def take_profit_calc(close: float, profit_percent: float, precision: int) -> Tup
 
 def plot_and_save_figure(market: str, df: pd.DataFrame, folder: str) -> str:
     # Plot and save results
-    fig, ax = plt.subplots()
+    fig, (ax, ax1) = plt.subplots(nrows=2, sharex="all", gridspec_kw={'height_ratios': [3, 1]})
+
     ax.plot(df.index, df.close, ".-", color="tab:blue")
     ax.plot(df.index, df.ema200, color="tab:orange")
     ax.plot(df.index, df.st, color="tab:gray")
 
     ax.plot(df.index, df.short_trig, marker='^', color='tab:red', markersize=8, linewidth=0, label='Short')
     ax.plot(df.index, df.long_trig, marker='v', color='tab:green', markersize=8, linewidth=0, label='Long')
+
+    ax1.plot(df.index, df.vol_ema200, color="tab:orange")
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d %H:%m'))
     fig.autofmt_xdate()

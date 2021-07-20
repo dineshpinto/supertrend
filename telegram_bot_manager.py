@@ -1,3 +1,5 @@
+import sys
+import logging
 import json
 import config
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -11,6 +13,10 @@ EXECUTE_TRADE = 3
 
 class TelegramBotManager:
     def __init__(self):
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            stream=sys.stdout, level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+
         # create the updater, that will automatically create also a dispatcher and a queue to
         # make them dialogue
         self._chat_id = config.TELEGRAM_CHAT_ID

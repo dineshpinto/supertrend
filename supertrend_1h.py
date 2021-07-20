@@ -17,7 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-perpetuals = [
+markets = [
     "ETH-PERP",
     "MATIC-PERP",
     "SOL-PERP",
@@ -47,8 +47,8 @@ while True:
         # Open new FTX Session
         ftx = FtxClient(api_key=API_KEY, api_secret=API_SECRET)
 
-        for perp in perpetuals:
-            df = ftx.get_historical_market_data(perp, interval=INTERVAL, start_time="10 days ago")
+        for market in markets:
+            df = ftx.get_historical_market_data(market, interval=INTERVAL, start_time="10 days ago")
 
             # Perform supertrend analysis
             df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=10,
@@ -59,7 +59,7 @@ while True:
             df["ema200"] = spt.calculate_ema(df.close, time_period=200)
             df["vol_ema200"] = spt.calculate_ema(df.volume, time_period=200)
 
-            figure_path = spt.plot_and_save_figure(perp, df, folder=INTERVAL)
+            figure_path = spt.plot_and_save_figure(market, df, folder=INTERVAL)
 
             # Set precision for orders
             precision = len(str(df.close[0]).split(".")[1])
@@ -80,7 +80,7 @@ while True:
             if last_signal != 0:
                 # Set up dict for new position
                 new_position = {
-                    "market": perp,
+                    "market": market,
                     "interval": INTERVAL,
                     "entry": df.close[-1],
                     "stop_loss": stop_loss,
@@ -120,29 +120,29 @@ while True:
                     break
 
                 # Close position if needed
-                open_position = ftx.check_open_position(perp)
+                open_position = ftx.check_open_position(market)
                 if open_position:
                     if open_position["side"] != new_position["side"]:
                         success, response = ftx.market_close_and_cancel_orders(
-                            perp,
+                            market,
                             side=new_position["side"],
                             size=open_position["size"]
                         )
 
                         if success:
-                            close_position_text = f"({perp}) Position closed at {response['price']}"
+                            close_position_text = f"({market}) Position closed at {response['price']}"
                         else:
-                            close_position_text = f"({perp}) Position failed to close: Message = {response}"
+                            close_position_text = f"({market}) Position failed to close: Message = {response}"
 
                         tapi.send_photo(figure_path, caption=close_position_text)
 
             # Update stop loss on open position
-            if ftx.check_open_position(perp):
-                updated_stop_loss = ftx.update_stop_loss(market=perp, stop_loss=stop_loss)
+            if ftx.check_open_position(market):
+                updated_stop_loss = ftx.update_stop_loss(market=market, stop_loss=stop_loss)
                 if updated_stop_loss != 0:
-                    updated_sl_text = f"({perp}) Updated stop loss = {updated_stop_loss} USD"
+                    updated_sl_text = f"({market}) Updated stop loss = {updated_stop_loss} USD"
                 else:
-                    updated_sl_text = f"({perp}) Stop loss not updated."
+                    updated_sl_text = f"({market}) Stop loss not updated."
                 logger.info(updated_sl_text)
                 tapi.send_photo(figure_path, caption=updated_sl_text)
     except Exception as exc:

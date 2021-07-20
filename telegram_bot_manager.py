@@ -80,8 +80,8 @@ class TelegramBotManager:
 
     # function to handle errors occurred in the dispatcher
     @staticmethod
-    def error(update: Update, _: CallbackContext):
-        update.message.reply_text('An error occurred bruh')
+    def error(update: Update, context: CallbackContext):
+        update.message.reply_text(f'An error occurred {context.error}')
 
     def trade(self, update: Update, context: CallbackContext):
         trades_1h, trades_4h = [], []

@@ -57,7 +57,10 @@ while True:
                                                                          precision=precision)
             long_profit_5pct, short_profit_5pct = spt.take_profit_calc(df.close[-1], profit_percent=5,
                                                                        precision=precision)
-
+            long_profit_75pct, short_profit_75pct = spt.take_profit_calc(df.close[-1], profit_percent=7.5,
+                                                                         precision=precision)
+            long_loss_5pct, short_loss_5pct = spt.stop_loss_calc(df.close[-1], loss_percent=5,
+                                                                 precision=precision)
             # Check last element of signal array
             last_signal = df.st_signal[-1]
 
@@ -78,11 +81,15 @@ while True:
                     new_position["side"] = "buy"
                     new_position["10pctprofit"] = long_profit_10pct
                     new_position["5pctprofit"] = long_profit_5pct
+                    new_position["75pctprofit"] = long_profit_75pct
+                    new_position["5pctloss"] = long_loss_5pct
                 elif last_signal == -1:
                     # Short position
                     new_position["side"] = "sell"
                     new_position["10pctprofit"] = short_profit_10pct
                     new_position["5pctprofit"] = short_profit_5pct
+                    new_position["75pctprofit"] = short_profit_75pct
+                    new_position["5pctloss"] = short_loss_5pct
 
                 if df.close[-1] < df.ema200[-1]:
                     new_position["ema200"] = "under"

@@ -296,3 +296,92 @@ class FtxClient:
             if idx == 5:
                 return False, response
         return True, response
+
+    def get_coin_balance(self, coin: str = "USD") -> float:
+        coin_balance = 0
+        for balance in self.get_balances():
+            if balance["coin"] == coin:
+                coin_balance = float(balance["free"])
+        return coin_balance
+
+    def get_size_precision(self, market: str) -> float:
+        order_book = self.get_orderbook(market, depth=1)
+        return len(str(order_book["asks"][0][1]).split(".")[1])
+
+    def get_price_precision(self, market: str) -> float:
+        order_book = self.get_orderbook(market, depth=1)
+        return len(str(order_book["asks"][0][0]).split(".")[1])
+
+    def get_latest_price(self, market: str, side: str) -> float:
+        order_book = self.get_orderbook(market, depth=1)
+        if side == "sell":
+            return float(order_book["asks"][0][0])
+        elif side == "buy":
+            return float(order_book["bids"][0][0])
+        return 0
+
+    def generate_order_size(self, price: float, market: str, percent: int) -> float:
+        usd_balance = self.get_coin_balance(coin="USD")
+        leverage = self.get_account_info()["leverage"]
+        usable_usd_balance = usd_balance * percent / 100 * leverage
+        size_precision = self.get_size_precision(market)
+        size = round(usable_usd_balance / float(price), size_precision)
+        return size
+
+    def get_stop_loss_price(self, price: float, percent: float, side: str, market: str):
+        if side == "sell":
+            sl_price = price + price * percent / 100
+        elif side == "buy":
+            sl_price = price - price * percent / 100
+        return round(sl_price, self.get_price_precision(market))
+
+    def get_take_profit_price(self, price: float, percent: float, side: str, market: str):
+        if side == "sell":
+            tp_price = price - price * percent / 100
+        elif side == "buy":
+            tp_price = price + price * percent / 100
+        return round(tp_price, self.get_price_precision(market))
+
+    @staticmethod
+    def _inverse_position(side: str) -> str:
+        if side == "buy":
+            return "sell"
+        elif side == "sell":
+            return "buy"
+
+    def generate_order(self, order: dict, account_percent: int = 10, take_profit_percent: float = 7.5,
+                       stop_loss_percent: float = 5) -> Tuple[dict, dict, dict]:
+        size = self.generate_order_size(order["entry"], order["market"], percent=account_percent)
+        price = self.get_latest_price(order["market"], order["side"])
+        stop_loss_price = self.get_stop_loss_price(price, stop_loss_percent, order["side"], order["market"])
+        take_profit_price = self.get_take_profit_price(price, take_profit_percent, order["side"], order["market"])
+
+        order_to_place = {
+            "market": order["market"],
+            "side": order["side"],
+            "price": price,
+            "size": size,
+            "type": "limit",
+        }
+
+        stop_loss_order = {
+            "market": order["market"],
+            "side": self._inverse_position(order["side"]),
+            "size": size,
+            "type": "stop",
+            "reduce_only": True,
+            "trigger_price": price,
+            "limit_price": stop_loss_price
+        }
+
+        take_profit_order = {
+            "market": order["market"],
+            "side": self._inverse_position(order["side"]),
+            "size": size,
+            "type": "take_profit",
+            "reduce_only": True,
+            "trigger_price": price,
+            "limit_price": take_profit_price
+        }
+
+        return order_to_place, stop_loss_order, take_profit_order

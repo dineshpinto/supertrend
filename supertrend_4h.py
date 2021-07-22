@@ -31,7 +31,7 @@ while True:
         perpetuals = []
         for future in ftx.list_futures():
             if future["type"] == "perpetual":
-                if future["volume"] > 10e6:
+                if future["volumeUsd24h"] > 2e7:
                     perpetuals.append(future["name"])
 
         for perp in perpetuals:

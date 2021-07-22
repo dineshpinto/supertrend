@@ -154,6 +154,8 @@ class TelegramBotManager(FtxClient):
 
     def make_order(self, update: Update, context: CallbackContext):
         global STATE
+        super(TelegramBotManager, self).__init__(api_key=API_KEY, api_secret=API_SECRET)
+
         try:
             trades_4h = json.load(open(self.trades_4h_json))
         except Exception as exc:

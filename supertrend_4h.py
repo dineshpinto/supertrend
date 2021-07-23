@@ -36,8 +36,8 @@ while True:
             df = ftx.get_historical_market_data(perp, interval="4h", start_time="40 days ago")
 
             # Perform supertrend analysis
-            df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=10,
-                                                                    multiplier=3)
+            df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=9,
+                                                                    multiplier=2)
             df["long_trig"], df["short_trig"], df["st_signal"] = spt.get_supertrend_signals(df.close, df.st)
 
             # Check 200 EMA for confirmation

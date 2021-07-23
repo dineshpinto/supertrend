@@ -106,21 +106,30 @@ class TelegramBotManager(FtxClient):
         self.send_msg(msg)
 
     def backtest(self, update: Update, context: CallbackContext):
+        super(TelegramBotManager, self).__init__(api_key=API_KEY, api_secret=API_SECRET)
+
         if context.args:
             try:
                 market = context.args[0].upper()
                 update.message.reply_text(f"Backtesting {market}...")
 
                 df = FtxClient.get_historical_market_data(self, market, interval="4h", start_time="100 days ago")
+
+                if len(df) < 600:
+                    raise ValueError("Insufficient data to run backtest")
+
                 result = bt.backtest_dataframe(df)
+                ranking = bt.get_backtest_ranking(result["PosNegRetRatio"], filename="MarketAnalysis.csv",
+                                                  sort_by_column="PosNegRetRatio")
 
                 for k, v in result.items():
-                    result[k] = str(round(v, 2))
+                    result[k] = str(round(v, 1))
                     if "ratio" not in k.lower():
                         result[k] += "%"
 
-                update.message.reply_text("<b>Backtesting result</b>\n" + self.tabulate_dict(result),
+                update.message.reply_text("<b>Backtesting Result:</b>\n" + self.tabulate_dict(result),
                                           parse_mode=ParseMode.HTML)
+                update.message.reply_text(f"Ranking = {ranking}", parse_mode=ParseMode.HTML)
             except Exception as exc:
                 update.message.reply_text(f"Error: {exc}")
         else:

@@ -61,7 +61,7 @@ def profits_calculator(positions: list, strategy: str = None) -> list:
 
 
 def profits_analysis(profits: list) -> dict:
-    returns = np.average(profits)
+    avg_returns = np.average(profits)
     std_dev = np.std(profits)
     minimum = np.min(profits)
     maximum = np.max(profits)
@@ -71,23 +71,35 @@ def profits_analysis(profits: list) -> dict:
     avg_pos_neg_ratio = np.abs(avg_pos_return / avg_neg_return)
 
     result = {
-        "Profit": returns,
+        "AvgReturns": avg_returns,
         "StdDev": std_dev,
-        "RetDevRatio": returns / std_dev,
-        "Min": minimum,
-        "Max": maximum,
-        "NegAvgRet": avg_neg_return,
-        "PosAvgRet": avg_pos_return,
-        "PosNegAvgRatio": avg_pos_neg_ratio
+        "RetDevRatio": avg_returns / std_dev,
+        "MinReturns": minimum,
+        "MaxReturns": maximum,
+        "AvgNegReturns": avg_neg_return,
+        "AvgPosReturns": avg_pos_return,
+        "PosNegRetRatio": avg_pos_neg_ratio
     }
     return result
 
 
 def backtest_dataframe(df: pd.DataFrame) -> dict:
-    st, _, _ = spt.supertrend_analysis(df.high, df.low, df.close, look_back=10, multiplier=3)
+    st, _, _ = spt.supertrend_analysis(df.high, df.low, df.close, look_back=9, multiplier=2)
     _, _, st_signal = spt.get_supertrend_signals(df.close, st)
 
     positions = get_base_positions(st_signal, df.close)
     profits = profits_calculator(positions)
 
     return profits_analysis(profits)
+
+
+def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = "PosNegRetRatio") -> str:
+    if not filename.endswith(".csv"):
+        filename += ".csv"
+
+    df = pd.read_csv(filename)
+
+    avg_pos_neg_ratio = np.append(df[sort_by_column].values, new_value)
+    reverse_sorted = np.sort(avg_pos_neg_ratio)[::-1]
+    rank = np.where(reverse_sorted == new_value)[0][0]
+    return f"{rank + 1}/{len(avg_pos_neg_ratio)}"

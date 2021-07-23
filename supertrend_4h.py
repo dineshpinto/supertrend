@@ -21,8 +21,6 @@ testing = False
 tapi = TelegramAPIManager(group=False)
 trades = []
 
-INTERVAL = "4h"
-
 while True:
     try:
         # Open new FTX Session
@@ -31,11 +29,11 @@ while True:
         perpetuals = []
         for future in ftx.list_futures():
             if future["type"] == "perpetual":
-                if future["volumeUsd24h"] > 2e7:
+                if future["volumeUsd24h"] > 1e7:
                     perpetuals.append(future["name"])
 
         for perp in perpetuals:
-            df = ftx.get_historical_market_data(perp, interval=INTERVAL, start_time="40 days ago")
+            df = ftx.get_historical_market_data(perp, interval="4h", start_time="40 days ago")
 
             # Perform supertrend analysis
             df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=10,
@@ -46,7 +44,7 @@ while True:
             df["ema200"] = spt.calculate_ema(df.close, time_period=200)
             df["vol_ema200"] = spt.calculate_ema(df.volume, time_period=200)
 
-            figure_path = spt.plot_and_save_figure(perp, df, folder=INTERVAL)
+            figure_path = spt.plot_and_save_figure(perp, df, folder="4h")
 
             # Set precision for orders
             precision = len(str(df.close[0]).split(".")[1])
@@ -71,7 +69,7 @@ while True:
                 # Set up dict for new position
                 new_position = {
                     "market": perp,
-                    "interval": INTERVAL,
+                    "interval": "4h",
                     "entry": df.close[-1],
                     "stop_loss": stop_loss,
                 }

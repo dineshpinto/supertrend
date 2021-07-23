@@ -5,6 +5,7 @@ import sys
 from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+import backtesting as bt
 import config
 from config import API_KEY, API_SECRET
 from ftx_client import FtxClient
@@ -30,6 +31,7 @@ class TelegramBotManager(FtxClient):
         # add handlers for start and help commands
         self.dispatcher.add_handler(CommandHandler("start", self.start))
         self.dispatcher.add_handler(CommandHandler("help", self.help))
+        self.dispatcher.add_handler(CommandHandler("backtest", self.backtest))
         self.dispatcher.add_handler(CommandHandler("makeorder", self.make_order))
         self.dispatcher.add_handler(CommandHandler("takeprofit", self.modify_take_profit))
         self.dispatcher.add_handler(CommandHandler("stoploss", self.modify_stop_loss))
@@ -94,6 +96,7 @@ class TelegramBotManager(FtxClient):
     # function to handle the /help command
     def help(self, update: Update, _: CallbackContext):
         msg = "The following commands are available:\n" \
+              "/backtest: Backtest a market\n" \
               "/makeorder: Open a new trade*\n" \
               "/takeprofit: Current take profit percentage*\n" \
               "/stoploss: Current stop loss percentage*\n" \
@@ -101,6 +104,27 @@ class TelegramBotManager(FtxClient):
               "/help: This help page\n" \
               "*Pass arguments: command <argument>"
         self.send_msg(msg)
+
+    def backtest(self, update: Update, context: CallbackContext):
+        if context.args:
+            try:
+                market = context.args[0].upper()
+                update.message.reply_text(f"Backtesting {market}...")
+
+                df = FtxClient.get_historical_market_data(self, market, interval="4h", start_time="100 days ago")
+                result = bt.backtest_dataframe(df)
+
+                for k, v in result.items():
+                    result[k] = str(round(v, 2))
+                    if "ratio" not in k.lower():
+                        result[k] += "%"
+
+                update.message.reply_text("<b>Backtesting result</b>\n" + self.tabulate_dict(result),
+                                          parse_mode=ParseMode.HTML)
+            except Exception as exc:
+                update.message.reply_text(f"Error: {exc}")
+        else:
+            update.message.reply_text(f"Enter a market to backtest")
 
     def modify_take_profit(self, update: Update, context: CallbackContext):
         if context.args:

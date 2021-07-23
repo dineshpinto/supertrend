@@ -116,17 +116,19 @@ class TelegramBotManager(FtxClient):
                 df = FtxClient.get_historical_market_data(self, market, interval="4h", start_time="100 days ago")
 
                 if len(df) < 600:
+                    # Exclude markets with insufficient history
                     raise ValueError("Insufficient data to run backtest")
 
-                result = bt.backtest_dataframe(df)
+                # Perform backtesting and calculate rank
+                result = bt.backtest_dataframe(df, look_back=9, multiplier=2)
                 ranking = bt.get_backtest_ranking(result["PosNegRetRatio"], filename="MarketAnalysis.csv",
                                                   sort_by_column="PosNegRetRatio")
 
+                # Format dictionary for message
                 for k, v in result.items():
                     result[k] = str(round(v, 1))
                     if "ratio" not in k.lower():
                         result[k] += "%"
-
                 update.message.reply_text("<b>Backtesting Result:</b>\n" + self.tabulate_dict(result),
                                           parse_mode=ParseMode.HTML)
                 update.message.reply_text(f"Ranking = {ranking}", parse_mode=ParseMode.HTML)

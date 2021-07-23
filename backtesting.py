@@ -83,8 +83,8 @@ def profits_analysis(profits: list) -> dict:
     return result
 
 
-def backtest_dataframe(df: pd.DataFrame) -> dict:
-    st, _, _ = spt.supertrend_analysis(df.high, df.low, df.close, look_back=9, multiplier=2)
+def backtest_dataframe(df: pd.DataFrame, look_back: int = 9, multiplier: int = 2) -> dict:
+    st, _, _ = spt.supertrend_analysis(df.high, df.low, df.close, look_back=look_back, multiplier=multiplier)
     _, _, st_signal = spt.get_supertrend_signals(df.close, st)
 
     positions = get_base_positions(st_signal, df.close)

@@ -6,6 +6,7 @@ figures/
 Testing.ipynb
 *.json
 technical_trader.py
+*.csv
 
 # PyCharm
 .idea/

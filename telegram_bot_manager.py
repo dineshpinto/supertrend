@@ -3,10 +3,10 @@ import json
 import logging
 import sys
 import traceback
-
+import os
 from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
+import pandas as pd
 import backtesting as bt
 import config
 from config import API_KEY, API_SECRET
@@ -15,6 +15,10 @@ from ftx_client import FtxClient
 STATE = None
 CONFIRM_ORDER = 1
 EXECUTE_ORDER = 2
+
+BACKTEST_FOLDER = "./backtest"
+ANALYSIS_FILEPATH = os.path.join(BACKTEST_FOLDER, "MarketAnalysis_40days_median.csv")
+OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, "OptimizedML_40days_median.csv")
 
 
 class TelegramBotManager(FtxClient):
@@ -44,7 +48,7 @@ class TelegramBotManager(FtxClient):
         self.dispatcher.add_handler(MessageHandler(Filters.text, self.text))
 
         # add an handler for errors
-        self.dispatcher.add_error_handler(self.error)
+        self.dispatcher.add_error_handler(self.error_handler)
 
         self.send_msg("@supertrending_bot has started")
 
@@ -121,17 +125,30 @@ class TelegramBotManager(FtxClient):
                     # Exclude markets with insufficient history
                     raise ValueError("Insufficient data to run backtest")
 
+                optimzed_ml = pd.read_csv(OPTIMIZEDML_FILEPATH)
+                try:
+                    multiplier = optimzed_ml.loc[optimzed_ml['Name'] == market]["Multiplier"].values[0]
+                    lookback = optimzed_ml.loc[optimzed_ml['Name'] == market]["Lookback"].values[0]
+                except IndexError:
+                    update.message.reply_text(f"{market} not in optimized ML dataframe, using default values...")
+                    multiplier = 2
+                    lookback = 9
+
                 # Perform backtesting and calculate rank
-                result = bt.backtest_dataframe(df, look_back=9, multiplier=2)
-                ranking = bt.get_backtest_ranking(result["PosNegRetRatio"], filename="MarketAnalysis.csv",
+                result = bt.backtest_dataframe(df, look_back=lookback, multiplier=multiplier)
+                ranking = bt.get_backtest_ranking(result["PosNegRetRatio"], filename=ANALYSIS_FILEPATH,
                                                   sort_by_column="PosNegRetRatio")
 
                 # Format dictionary for message
                 for k, v in result.items():
                     result[k] = str(round(v, 1))
-                    if "ratio" not in k.lower():
+                    if "ratio" not in k.lower() and "dev" not in k.lower():
                         result[k] += "%"
-                update.message.reply_text("<b>Backtesting Result:</b>\n" + self.tabulate_dict(result),
+
+                result["Multiplier"] = multiplier
+                result["Lookback"] = lookback
+                update.message.reply_text("<b>Backtesting Result:</b>\n" +
+                                          self.tabulate_dict(result),
                                           parse_mode=ParseMode.HTML)
                 update.message.reply_text(f"Ranking = {ranking}", parse_mode=ParseMode.HTML)
             except Exception as exc:
@@ -186,7 +203,7 @@ class TelegramBotManager(FtxClient):
 
     # function to handle errors occurred in the dispatcher
     def error_handler(self, update: object, context: CallbackContext):
-        context.bot.send_message(f'An error occurred: {context.error}')
+        context.bot.send_message(text=f'An error occurred: {context.error}')
         """Log the error and send a telegram message to notify the developer."""
         # Log the error before we do anything else, so we can see it even if something breaks.
         self.logger.error(msg="Exception while handling an update:", exc_info=context.error)

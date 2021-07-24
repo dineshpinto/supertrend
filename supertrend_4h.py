@@ -2,9 +2,9 @@ import json
 import logging
 import sys
 import time
-
+import pandas as pd
 import matplotlib.pyplot as plt
-
+import os
 import supertrend as spt
 from config import API_KEY, API_SECRET
 from ftx_client import FtxClient
@@ -17,7 +17,9 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 testing = False
+BACKTEST_FOLDER = "./backtest"
 
+OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, "OptimizedML_40days_median.csv")
 tapi = TelegramAPIManager(group=False)
 trades = []
 
@@ -25,26 +27,40 @@ while True:
     try:
         # Open new FTX Session
         ftx = FtxClient(api_key=API_KEY, api_secret=API_SECRET)
+        optimzed_ml = pd.read_csv(OPTIMIZEDML_FILEPATH)
 
-        perpetuals = []
+        markets = []
         for future in ftx.list_futures():
             if future["type"] == "perpetual":
                 if future["volumeUsd24h"] > 1e7:
-                    perpetuals.append(future["name"])
+                    markets.append(future["name"])
 
-        for perp in perpetuals:
-            df = ftx.get_historical_market_data(perp, interval="4h", start_time="40 days ago")
+        for market in markets:
+            df = ftx.get_historical_market_data(market, interval="4h", start_time="40 days ago")
+
+            if len(df) < 240:
+                continue
+
+            try:
+                multiplier = optimzed_ml.loc[optimzed_ml['Name'] == market]["Multiplier"].values[0]
+                lookback = optimzed_ml.loc[optimzed_ml['Name'] == market]["Lookback"].values[0]
+            except IndexError:
+                multiplier = 2
+                lookback = 9
+                text = f"{market} not in optimized ML dataframe, either data is insufficient or database needs to be " \
+                       f"updated. Using default Multiplier={multiplier} and Lookback={lookback}..."
+                logger.warning(text)
 
             # Perform supertrend analysis
-            df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=9,
-                                                                    multiplier=2)
+            df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=lookback,
+                                                                    multiplier=multiplier)
             df["long_trig"], df["short_trig"], df["st_signal"] = spt.get_supertrend_signals(df.close, df.st)
 
             # Check 200 EMA for confirmation
             df["ema200"] = spt.calculate_ema(df.close, time_period=200)
             df["vol_ema200"] = spt.calculate_ema(df.volume, time_period=200)
 
-            figure_path = spt.plot_and_save_figure(perp, df, folder="4h")
+            figure_path = spt.plot_and_save_figure(market, df, folder="4h")
 
             # Set precision for orders
             precision = len(str(df.close[0]).split(".")[1])
@@ -68,7 +84,7 @@ while True:
             if last_signal != 0:
                 # Set up dict for new position
                 new_position = {
-                    "market": perp,
+                    "market": market,
                     "interval": "4h",
                     "entry": df.close[-1],
                     "stop_loss": stop_loss,
@@ -106,19 +122,19 @@ while True:
                     json.dump(trades, json_file)
 
                 # Close position if needed
-                open_position = ftx.check_open_position(perp)
+                open_position = ftx.check_open_position(market)
                 if open_position:
                     if open_position["side"] != new_position["side"]:
                         success, response = ftx.market_close_and_cancel_orders(
-                            perp,
+                            market,
                             side=new_position["side"],
                             size=open_position["size"]
                         )
 
                         if success:
-                            close_position_text = f"({perp}) Position closed at {response['price']}"
+                            close_position_text = f"({market}) Position closed at {response['price']}"
                         else:
-                            close_position_text = f"({perp}) Position failed to close: Message {response}"
+                            close_position_text = f"({market}) Position failed to close: Error: {response}"
 
                         tapi.send_photo(figure_path, caption=close_position_text)
                 if testing:

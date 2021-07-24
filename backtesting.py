@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import pandas as pd
 
@@ -13,6 +15,26 @@ def get_base_positions(st_signal: np.ndarray, close: np.ndarray) -> list:
         elif signal == -1:
             positions.append({"side": "short", "price": close[idx]})
     return positions
+
+
+def optimize_m_l(df: pd.DataFrame, optimize_to: str = "PosNegRetRatio") -> dict:
+    analysis_df = pd.DataFrame(
+        columns=["M_L", "AvgReturns", "StdDev", "RetDevRatio", "MinReturns", "MaxReturns",
+                 "AvgNegReturns", "AvgPosReturns", "PosNegRetRatio", "MedReturns", "MedNegReturns",
+                 "MedPosReturns", "MedPosNegRetRatio"])
+
+    multipliers = [2, 3, 4]
+    lookbacks = [9, 10, 11]
+
+    for multiplier, lookback in itertools.product(multipliers, lookbacks):
+        profits = backtest_dataframe(df, look_back=lookback, multiplier=multiplier)
+        profits["M_L"] = f"{multiplier}_{lookback}"
+        analysis_df = analysis_df.append(profits, ignore_index=True)
+
+    analysis_df = analysis_df.sort_values(optimize_to, ascending=False)
+    analysis_df = analysis_df.reset_index(drop=True)
+    opt_multiplier, opt_lookback = [int(val) for val in analysis_df["M_L"][0].split("_")]
+    return {"Multiplier": opt_multiplier, "Lookback": opt_lookback}
 
 
 def short_strategy(pos: dict, strategy: str) -> bool:
@@ -60,15 +82,20 @@ def profits_calculator(positions: list, strategy: str = None) -> list:
     return profits
 
 
-def profits_analysis(profits: list) -> dict:
-    avg_returns = np.average(profits)
+def profits_analysis(profits: list, method: str = "average") -> dict:
     std_dev = np.std(profits)
     minimum = np.min(profits)
     maximum = np.max(profits)
 
+    avg_returns = np.average(profits)
     avg_neg_return = (np.average([val for val in profits if val < 0]))
     avg_pos_return = (np.average([val for val in profits if val > 0]))
     avg_pos_neg_ratio = np.abs(avg_pos_return / avg_neg_return)
+
+    med_returns = np.median(profits)
+    med_neg_return = (np.median([val for val in profits if val < 0]))
+    med_pos_return = (np.median([val for val in profits if val > 0]))
+    med_pos_neg_ratio = np.abs(med_pos_return / med_neg_return)
 
     result = {
         "AvgReturns": avg_returns,
@@ -78,7 +105,11 @@ def profits_analysis(profits: list) -> dict:
         "MaxReturns": maximum,
         "AvgNegReturns": avg_neg_return,
         "AvgPosReturns": avg_pos_return,
-        "PosNegRetRatio": avg_pos_neg_ratio
+        "PosNegRetRatio": avg_pos_neg_ratio,
+        "MedReturns": med_returns,
+        "MedNegReturns": med_neg_return,
+        "MedPosReturns": med_pos_return,
+        "MedPosNegRetRatio": med_pos_neg_ratio
     }
     return result
 

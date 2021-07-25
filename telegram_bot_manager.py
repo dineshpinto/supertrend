@@ -1,12 +1,14 @@
 import html
 import json
 import logging
+import os
 import sys
 import traceback
-import os
+
+import pandas as pd
 from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import pandas as pd
+
 import backtesting as bt
 import config
 from config import API_KEY, API_SECRET

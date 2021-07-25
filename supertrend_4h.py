@@ -1,10 +1,12 @@
 import json
 import logging
+import os
 import sys
 import time
-import pandas as pd
+
 import matplotlib.pyplot as plt
-import os
+import pandas as pd
+
 import supertrend as spt
 from config import API_KEY, API_SECRET
 from ftx_client import FtxClient

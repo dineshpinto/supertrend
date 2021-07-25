@@ -124,13 +124,31 @@ def backtest_dataframe(df: pd.DataFrame, look_back: int = 9, multiplier: int = 2
     return profits_analysis(profits)
 
 
-def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = "PosNegRetRatio") -> str:
+def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = "MedPosNegRetRatio") -> str:
     if not filename.endswith(".csv"):
         filename += ".csv"
 
     df = pd.read_csv(filename)
 
-    avg_pos_neg_ratio = np.append(df[sort_by_column].values, new_value)
-    reverse_sorted = np.sort(avg_pos_neg_ratio)[::-1]
+    ranking_column = np.append(df[sort_by_column].values, new_value)
+    reverse_sorted = np.sort(ranking_column)[::-1]
     rank = np.where(reverse_sorted == new_value)[0][0]
-    return f"{rank + 1}/{len(avg_pos_neg_ratio)}"
+    return f"{rank + 1}/{len(ranking_column)}"
+
+
+def get_all_rankings(filename: str, sort_by_column: str = "MedPosNegRetRatio", till_rank: int = -1) -> str:
+    if not filename.endswith(".csv"):
+        filename += ".csv"
+
+    df = pd.read_csv(filename)
+
+    df = df.sort_values(sort_by_column, ascending=False)
+    names = df["Name"].values
+    rankings = df[sort_by_column].values
+
+    text = ""
+    for idx, (name, ranking) in enumerate(zip(names, rankings)):
+        if idx < till_rank or till_rank == -1:
+            text += f"{idx+1}. {name} {ranking}\n"
+
+    return text

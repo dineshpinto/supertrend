@@ -38,6 +38,7 @@ class TelegramBotManager(FtxClient):
         self.dispatcher.add_handler(CommandHandler("start", self.start))
         self.dispatcher.add_handler(CommandHandler("help", self.help))
         self.dispatcher.add_handler(CommandHandler("backtest", self.backtest))
+        self.dispatcher.add_handler(CommandHandler("rankings", self.get_rankings))
         self.dispatcher.add_handler(CommandHandler("makeorder", self.make_order))
         self.dispatcher.add_handler(CommandHandler("takeprofit", self.modify_take_profit))
         self.dispatcher.add_handler(CommandHandler("stoploss", self.modify_stop_loss))
@@ -103,6 +104,7 @@ class TelegramBotManager(FtxClient):
     def help(self, update: Update, _: CallbackContext):
         msg = "The following commands are available:\n" \
               "/backtest: Backtest a market\n" \
+              "/rankings: Get market rankings*\n" \
               "/makeorder: Open a new trade*\n" \
               "/takeprofit: Current take profit percentage*\n" \
               "/stoploss: Current stop loss percentage*\n" \
@@ -110,6 +112,16 @@ class TelegramBotManager(FtxClient):
               "/help: This help page\n" \
               "*Pass arguments: command <argument>"
         self.send_msg(msg)
+
+    @staticmethod
+    def get_rankings(update: Update, context: CallbackContext):
+        if context.args:
+            till_rank = int(context.args[0])
+        else:
+            till_rank = -1
+
+        rankings = bt.get_all_rankings(ANALYSIS_FILEPATH, sort_by_column="MedPosNegRetRatio", till_rank=till_rank)
+        update.message.reply_text(f"<b>Rankings:</b>\n" + rankings, parse_mode=ParseMode.HTML)
 
     def backtest(self, update: Update, context: CallbackContext):
         super(TelegramBotManager, self).__init__(api_key=API_KEY, api_secret=API_SECRET)
@@ -136,8 +148,8 @@ class TelegramBotManager(FtxClient):
 
                 # Perform backtesting and calculate rank
                 result = bt.backtest_dataframe(df, look_back=lookback, multiplier=multiplier)
-                ranking = bt.get_backtest_ranking(result["PosNegRetRatio"], filename=ANALYSIS_FILEPATH,
-                                                  sort_by_column="PosNegRetRatio")
+                ranking = bt.get_backtest_ranking(result["MedPosNegRetRatio"], filename=ANALYSIS_FILEPATH,
+                                                  sort_by_column="MedPosNegRetRatio")
 
                 # Format dictionary for message
                 for k, v in result.items():

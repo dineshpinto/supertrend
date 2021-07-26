@@ -1,0 +1,19 @@
+{
+    "filepaths": {
+        "analysis_file": "MarketAnalysis_40days_median.csv",
+        "optimized_ml_file":"OptimizedML_40days_median.csv",
+        "backtest_folder":"backtest",
+        "figure_folder": "figures",
+        "figure_subfolder": "4h",
+        "trades_file": "trades_4h.json"
+    },
+    "markets": {
+        "min_volume_usd_24h": 1e7,
+        "blacklist": ["ATOM-PERP", "USDT-PERP", "FLOW-PERP"]
+    },
+    "analysis": {
+        "start_time": "100 days ago",
+        "interval": "4h",
+        "min_data_length": 600
+    }
+}

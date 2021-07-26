@@ -18,9 +18,13 @@ STATE = None
 CONFIRM_ORDER = 1
 EXECUTE_ORDER = 2
 
-BACKTEST_FOLDER = "./backtest"
-ANALYSIS_FILEPATH = os.path.join(BACKTEST_FOLDER, "MarketAnalysis_40days_median.csv")
-OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, "OptimizedML_40days_median.csv")
+with open("settings.json") as jsonfile:
+    settings = json.load(jsonfile)
+
+BACKTEST_FOLDER = settings["filepaths"]["backtest_folder"]
+OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, settings["filepaths"]["optimized_ml_file"])
+ANALYSIS_FILEPATH = os.path.join(BACKTEST_FOLDER, settings["filepaths"]["analysis_file"])
+FIGURE_PATH = os.path.join(settings["filepaths"]["figure_folder"], settings["filepaths"]["figure_subfolder"])
 
 
 class TelegramBotManager(FtxClient):
@@ -53,16 +57,13 @@ class TelegramBotManager(FtxClient):
         # add an handler for errors
         self.dispatcher.add_error_handler(self.error_handler)
 
-        self.send_msg("@supertrending_bot has started")
-
         # set up variables
         self.trades = []
         self.order_to_place = {}
         self.sl_order = {}
-        self.tp_order = {}
 
         # Set up initial values
-        self.trades_4h_json = "trades_4h.json"
+        self.trades_4h_json = settings["filepaths"]["trades_file"]
         self.tp_percent = 7.5
         self.sl_percent = 5
         self.account_percent = 25
@@ -131,9 +132,11 @@ class TelegramBotManager(FtxClient):
         if context.args:
             try:
                 market = context.args[0].upper()
-                update.message.reply_text(f"Backtesting {market}...")
+                update.message.reply_text(f'Backtesting {market} with {settings["analysis"]["interval"]} timeframe '
+                                          f'from {settings["analysis"]["start_time"]}...')
 
-                df = FtxClient.get_historical_market_data(self, market, interval="4h", start_time="100 days ago")
+                df = FtxClient.get_historical_market_data(self, market, interval=settings["analysis"]["interval"],
+                                                          start_time=settings["analysis"]["start_time"])
 
                 if len(df) < 600:
                     # Exclude markets with insufficient history
@@ -161,10 +164,14 @@ class TelegramBotManager(FtxClient):
 
                 result["Multiplier"] = multiplier
                 result["Lookback"] = lookback
-                update.message.reply_text("<b>Backtesting Result:</b>\n" +
-                                          self.tabulate_dict(result),
-                                          parse_mode=ParseMode.HTML)
-                update.message.reply_text(f"Ranking = {ranking}", parse_mode=ParseMode.HTML)
+
+                figure_path = os.path.join(FIGURE_PATH, f"{market}.jpg")
+                text = "<b>Backtesting Result:</b>\n" + self.tabulate_dict(result) + f"Ranking = {ranking}"
+                if os.path.exists(figure_path):
+                    update.message.reply_photo(open(figure_path, "rb"), caption=text, parse_mode=ParseMode.HTML)
+                else:
+                    update.message.reply_text(text, parse_mode=ParseMode.HTML)
+
             except Exception as exc:
                 update.message.reply_text(f"Error: {exc}")
         else:
@@ -259,14 +266,13 @@ class TelegramBotManager(FtxClient):
                     if context.args[0].lower() in trade["market"].lower():
                         trade_idx = idx
 
-            self.order_to_place, self.sl_order, self.tp_order = \
-                FtxClient.generate_order(self, trades_4h[trade_idx], take_profit_percent=self.tp_percent,
-                                         stop_loss_percent=self.sl_percent, account_percent=self.account_percent)
+            self.order_to_place, self.sl_order = FtxClient.generate_order(self, trades_4h[trade_idx],
+                                                                          stop_loss_percent=self.sl_percent,
+                                                                          account_percent=self.account_percent)
 
             text = (
                     f"<b>Order ({self.account_percent}%)</b>\n" + self.tabulate_dict(self.order_to_place) + "\n" +
-                    f"<b>Stop loss ({self.sl_percent}%)</b>\n" + self.tabulate_dict(self.sl_order) + "\n" +
-                    f"<b>Take profit ({self.tp_percent}%)</b>\n" + self.tabulate_dict(self.tp_order)
+                    f"<b>Stop loss ({self.sl_percent}%)</b>\n" + self.tabulate_dict(self.sl_order) + "\n"
             )
 
             update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -306,17 +312,6 @@ class TelegramBotManager(FtxClient):
             reduce_only=self.sl_order["reduce_only"],
             trigger_price=self.sl_order["trigger_price"],
             limit_price=self.sl_order["limit_price"]
-        )
-
-        FtxClient.place_conditional_order(
-            self,
-            market=self.tp_order["market"],
-            side=self.tp_order["side"],
-            size=self.tp_order["size"],
-            type=self.tp_order["type"],
-            reduce_only=self.tp_order["reduce_only"],
-            trigger_price=self.tp_order["trigger_price"],
-            limit_price=self.tp_order["limit_price"]
         )
 
         update.message.reply_text(f'Orders placed successfully!')

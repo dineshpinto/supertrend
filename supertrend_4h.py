@@ -6,6 +6,7 @@ import time
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from tqdm import tqdm
 
 import supertrend as spt
 from config import API_KEY, API_SECRET
@@ -18,10 +19,14 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-testing = False
-BACKTEST_FOLDER = "./backtest"
+with open("settings.json") as jsonfile:
+    settings = json.load(jsonfile)
 
-OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, "OptimizedML_40days_median.csv")
+testing = False
+BACKTEST_FOLDER = settings["filepaths"]["backtest_folder"]
+OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, settings["filepaths"]["optimized_ml_file"])
+FIGURE_PATH = os.path.join(settings["filepaths"]["figure_folder"], settings["filepaths"]["figure_subfolder"])
+
 tapi = TelegramAPIManager(group=False)
 trades = []
 
@@ -31,18 +36,31 @@ while True:
         ftx = FtxClient(api_key=API_KEY, api_secret=API_SECRET)
         optimzed_ml = pd.read_csv(OPTIMIZEDML_FILEPATH)
 
+        # Get list of all markets according to criteria
         markets = []
         for future in ftx.list_futures():
             if future["type"] == "perpetual":
-                if future["volumeUsd24h"] > 1e7:
+                if (future["volumeUsd24h"] > settings["markets"]["min_volume_usd_24h"] and
+                        future["name"] not in settings["markets"]["blacklist"]):
                     markets.append(future["name"])
 
-        for market in markets:
-            df = ftx.get_historical_market_data(market, interval="4h", start_time="40 days ago")
+        # Delete all old images in folder
+        for filename in os.listdir(FIGURE_PATH):
+            if not filename.endswith(".jpg"):
+                continue
+            os.remove(os.path.join(FIGURE_PATH, filename))
 
-            if len(df) < 240:
+        pbar = tqdm(markets)
+        for market in pbar:
+            pbar.set_description(market)
+
+            df = ftx.get_historical_market_data(market, interval=settings["analysis"]["interval"],
+                                                start_time=settings["analysis"]["start_time"])
+
+            if len(df) < settings["analysis"]["min_data_length"]:
                 continue
 
+            # Get optimized values for supertrend inputs
             try:
                 multiplier = optimzed_ml.loc[optimzed_ml['Name'] == market]["Multiplier"].values[0]
                 lookback = optimzed_ml.loc[optimzed_ml['Name'] == market]["Lookback"].values[0]
@@ -62,7 +80,7 @@ while True:
             df["ema200"] = spt.calculate_ema(df.close, time_period=200)
             df["vol_ema200"] = spt.calculate_ema(df.volume, time_period=200)
 
-            figure_path = spt.plot_and_save_figure(market, df, folder="4h")
+            figure_path = spt.plot_and_save_figure(market, df, folder_path=FIGURE_PATH)
 
             # Set precision for orders
             precision = len(str(df.close[0]).split(".")[1])
@@ -120,7 +138,7 @@ while True:
                 tapi.send_photo(figure_path, caption=json.dumps(new_position, indent=2, default=str))
                 trades.append(new_position)
 
-                with open('trades_4h.json', 'w') as json_file:
+                with open(settings["filepaths"]["trades_file"], 'w') as json_file:
                     json.dump(trades, json_file)
 
                 # Close position if needed

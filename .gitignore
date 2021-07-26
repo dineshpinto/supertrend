@@ -4,7 +4,7 @@ memes/
 config.py
 figures/
 Testing.ipynb
-*.json
+trades_4h.json
 technical_trader.py
 *.csv
 

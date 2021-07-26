@@ -7,8 +7,6 @@ import numpy as np
 import pandas as pd
 from talib import EMA, SMA, RSI, STOCH
 
-FIGURE_PATH = "figures"
-
 
 def supertrend_analysis(high, low, close, look_back, multiplier):
     # ATR
@@ -49,7 +47,6 @@ def supertrend_analysis(high, low, close, look_back, multiplier):
                 final_bands.iloc[i, 1] = final_bands.iloc[i - 1, 1]
 
     # SUPERTREND
-
     supertrend = pd.DataFrame(columns=[f'supertrend_{look_back}'])
     supertrend.iloc[:, 0] = [x for x in final_bands['upper'] - final_bands['upper']]
 
@@ -151,7 +148,7 @@ def stop_loss_calc(close: float, loss_percent: float, precision: int) -> Tuple[f
     return long_loss, short_loss
 
 
-def plot_and_save_figure(market: str, df: pd.DataFrame, folder: str) -> str:
+def plot_and_save_figure(market: str, df: pd.DataFrame, folder_path: str) -> str:
     # Plot and save results
     fig, (ax, ax1) = plt.subplots(nrows=2, sharex="all", gridspec_kw={'height_ratios': [3, 1]})
 
@@ -170,11 +167,9 @@ def plot_and_save_figure(market: str, df: pd.DataFrame, folder: str) -> str:
     plt.close(fig)
     ax.legend()
 
-    folder_path = os.path.join(FIGURE_PATH, folder)
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     figure_path = os.path.join(folder_path, f"{market}.jpg")
-
     fig.savefig(figure_path, dpi=300)
     return figure_path
 

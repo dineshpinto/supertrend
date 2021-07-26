@@ -349,12 +349,11 @@ class FtxClient:
         elif side == "sell":
             return "buy"
 
-    def generate_order(self, order: dict, account_percent: int = 10, take_profit_percent: float = 7.5,
-                       stop_loss_percent: float = 5) -> Tuple[dict, dict, dict]:
+    def generate_order(self, order: dict, account_percent: int = 10, stop_loss_percent: float = 5) \
+            -> Tuple[dict, dict]:
         size = self.generate_order_size(order["entry"], order["market"], percent=account_percent)
         price = self.get_latest_price(order["market"], order["side"])
         stop_loss_price = self.get_stop_loss_price(price, stop_loss_percent, order["side"], order["market"])
-        take_profit_price = self.get_take_profit_price(price, take_profit_percent, order["side"], order["market"])
 
         order_to_place = {
             "market": order["market"],
@@ -370,18 +369,7 @@ class FtxClient:
             "size": size,
             "type": "stop",
             "reduce_only": True,
-            "trigger_price": price,
-            "limit_price": stop_loss_price
+            "trigger_price": stop_loss_price,
         }
 
-        take_profit_order = {
-            "market": order["market"],
-            "side": self._inverse_position(order["side"]),
-            "size": size,
-            "type": "take_profit",
-            "reduce_only": True,
-            "trigger_price": price,
-            "limit_price": take_profit_price
-        }
-
-        return order_to_place, stop_loss_order, take_profit_order
+        return order_to_place, stop_loss_order

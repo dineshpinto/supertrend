@@ -23,7 +23,7 @@ def optimize_m_l(df: pd.DataFrame, optimize_to: str = "PosNegRetRatio") -> dict:
                  "AvgNegReturns", "AvgPosReturns", "PosNegRetRatio", "MedReturns", "MedNegReturns",
                  "MedPosReturns", "MedPosNegRetRatio"])
 
-    multipliers = [2, 3, 4]
+    multipliers = [3, 4]
     lookbacks = [9, 10, 11]
 
     for multiplier, lookback in itertools.product(multipliers, lookbacks):
@@ -69,7 +69,7 @@ def long_strategy(pos: dict, strategy: str) -> bool:
         return True
 
 
-def profits_calculator(positions: list, strategy: str = None) -> list:
+def profits_calculator(positions: list, strategy: str = None) -> np.ndarray:
     profits = []
 
     for idx in range(len(positions) - 1):
@@ -79,23 +79,40 @@ def profits_calculator(positions: list, strategy: str = None) -> list:
         elif positions[idx]["side"] == "long" and long_strategy(positions[idx], strategy):
             percent_change = (positions[idx + 1]["price"] - positions[idx]["price"]) / positions[idx]["price"] * 100
             profits.append(percent_change)
-    return profits
+    return np.array(profits)
 
 
-def profits_analysis(profits: list, method: str = "average") -> dict:
+def profits_analysis(profits: np.ndarray) -> dict:
+    # Basic statistics
     std_dev = np.std(profits)
     minimum = np.min(profits)
     maximum = np.max(profits)
 
-    avg_returns = np.average(profits)
-    avg_neg_return = (np.average([val for val in profits if val < 0]))
-    avg_pos_return = (np.average([val for val in profits if val > 0]))
-    avg_pos_neg_ratio = np.abs(avg_pos_return / avg_neg_return)
+    # Profits and losses
+    neg_returns = profits[profits < 0]
+    pos_returns = profits[profits > 0]
 
+    # Average returns and ratio calculations
+    avg_returns = np.average(profits)
+    avg_pos_return = np.average(pos_returns)
+
+    if neg_returns.size == 0:
+        avg_neg_return = 0
+        avg_pos_neg_ratio = np.abs(avg_pos_return)
+    else:
+        avg_neg_return = np.average(neg_returns)
+        avg_pos_neg_ratio = np.abs(avg_pos_return / avg_neg_return)
+
+    # Median returns and ratio calculations
     med_returns = np.median(profits)
-    med_neg_return = (np.median([val for val in profits if val < 0]))
-    med_pos_return = (np.median([val for val in profits if val > 0]))
-    med_pos_neg_ratio = np.abs(med_pos_return / med_neg_return)
+    med_pos_return = np.median(pos_returns)
+
+    if neg_returns.size == 0:
+        med_neg_return = 0
+        med_pos_neg_ratio = np.abs(med_pos_return)
+    else:
+        med_neg_return = np.median(neg_returns)
+        med_pos_neg_ratio = np.abs(med_pos_return / med_neg_return)
 
     result = {
         "AvgReturns": avg_returns,
@@ -133,7 +150,7 @@ def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = 
     ranking_column = np.append(df[sort_by_column].values, new_value)
     reverse_sorted = np.sort(ranking_column)[::-1]
     rank = np.where(reverse_sorted == new_value)[0][0]
-    return f"{rank + 1}/{len(ranking_column)}"
+    return f"{rank}/{len(ranking_column)}"
 
 
 def get_all_rankings(filename: str, sort_by_column: str = "MedPosNegRetRatio", till_rank: int = -1) -> str:
@@ -149,6 +166,6 @@ def get_all_rankings(filename: str, sort_by_column: str = "MedPosNegRetRatio", t
     text = ""
     for idx, (name, ranking) in enumerate(zip(names, rankings)):
         if idx < till_rank or till_rank == -1:
-            text += f"{idx+1}. {name} {ranking}\n"
+            text += f"{idx + 1}. {name} {ranking}\n"
 
     return text

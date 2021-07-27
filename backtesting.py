@@ -11,17 +11,30 @@ def get_base_positions(st_signal: np.ndarray, close: np.ndarray) -> list:
 
     for idx, signal in enumerate(st_signal):
         if signal == 1:
-            positions.append({"side": "long", "price": close[idx]})
+            positions.append({"side": "long", "price": close[idx], "idx": idx})
         elif signal == -1:
-            positions.append({"side": "short", "price": close[idx]})
+            positions.append({"side": "short", "price": close[idx], "idx": idx})
+
     return positions
+
+
+def get_drawdown(positions: list, high: np.ndarray, low: np.ndarray) -> np.ndarray:
+    drawdown = []
+    for idx in range(len(positions) - 1):
+        if positions[idx]["side"] == "long":
+            min_price_in_range = np.min(low[positions[idx]["idx"]:positions[idx+1]["idx"]])
+            drawdown.append((positions[idx]["price"] - min_price_in_range) / min_price_in_range * 100)
+        if positions[idx]["side"] == "short":
+            max_price_in_range = np.max(high[positions[idx]["idx"]:positions[idx+1]["idx"]])
+            drawdown.append((max_price_in_range - positions[idx]["price"]) / positions[idx]["price"] * 100)
+    return np.array(drawdown)
 
 
 def optimize_m_l(df: pd.DataFrame, optimize_to: str = "PosNegRetRatio") -> dict:
     analysis_df = pd.DataFrame(
         columns=["M_L", "AvgReturns", "StdDev", "RetDevRatio", "MinReturns", "MaxReturns",
                  "AvgNegReturns", "AvgPosReturns", "PosNegRetRatio", "MedReturns", "MedNegReturns",
-                 "MedPosReturns", "MedPosNegRetRatio"])
+                 "MedPosReturns", "MedPosNegRetRatio", "TheDfactor"])
 
     multipliers = [3, 4]
     lookbacks = [9, 10, 11]
@@ -82,11 +95,14 @@ def profits_calculator(positions: list, strategy: str = None) -> np.ndarray:
     return np.array(profits)
 
 
-def profits_analysis(profits: np.ndarray) -> dict:
+def profits_analysis(profits: np.ndarray, drawdown: np.ndarray) -> dict:
     # Basic statistics
     std_dev = np.std(profits)
     minimum = np.min(profits)
     maximum = np.max(profits)
+
+    # Average drawdown
+    avg_drawdown = np.average(drawdown)
 
     # Profits and losses
     neg_returns = profits[profits < 0]
@@ -117,6 +133,7 @@ def profits_analysis(profits: np.ndarray) -> dict:
     result = {
         "AvgReturns": avg_returns,
         "StdDev": std_dev,
+        "AvgDrawdown": avg_drawdown,
         "RetDevRatio": avg_returns / std_dev,
         "MinReturns": minimum,
         "MaxReturns": maximum,
@@ -126,7 +143,8 @@ def profits_analysis(profits: np.ndarray) -> dict:
         "MedReturns": med_returns,
         "MedNegReturns": med_neg_return,
         "MedPosReturns": med_pos_return,
-        "MedPosNegRetRatio": med_pos_neg_ratio
+        "MedPosNegRetRatio": med_pos_neg_ratio,
+        "TheDfactor": med_pos_neg_ratio / avg_drawdown
     }
     return result
 
@@ -136,12 +154,13 @@ def backtest_dataframe(df: pd.DataFrame, look_back: int = 9, multiplier: int = 2
     _, _, st_signal = spt.get_supertrend_signals(df.close, st)
 
     positions = get_base_positions(st_signal, df.close)
+    drawdown = get_drawdown(positions, high=df.high, low=df.low)
     profits = profits_calculator(positions)
 
-    return profits_analysis(profits)
+    return profits_analysis(profits, drawdown)
 
 
-def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = "MedPosNegRetRatio") -> str:
+def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = "TheDfactor") -> str:
     if not filename.endswith(".csv"):
         filename += ".csv"
 
@@ -153,7 +172,7 @@ def get_backtest_ranking(new_value: float, filename: str, sort_by_column: str = 
     return f"{rank}/{len(ranking_column)}"
 
 
-def get_all_rankings(filename: str, sort_by_column: str = "MedPosNegRetRatio", till_rank: int = -1) -> str:
+def get_all_rankings(filename: str, sort_by_column: str = "TheDfactor", till_rank: int = -1) -> str:
     if not filename.endswith(".csv"):
         filename += ".csv"
 

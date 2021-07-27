@@ -123,7 +123,7 @@ class TelegramBotManager(FtxClient):
         else:
             till_rank = -1
 
-        rankings = bt.get_all_rankings(ANALYSIS_FILEPATH, sort_by_column="MedPosNegRetRatio", till_rank=till_rank)
+        rankings = bt.get_all_rankings(ANALYSIS_FILEPATH, sort_by_column="TheDfactor", till_rank=till_rank)
         update.message.reply_text(f"<b>Rankings:</b>\n" + rankings, parse_mode=ParseMode.HTML)
 
     def backtest(self, update: Update, context: CallbackContext):
@@ -153,8 +153,8 @@ class TelegramBotManager(FtxClient):
 
                 # Perform backtesting and calculate rank
                 result = bt.backtest_dataframe(df, look_back=lookback, multiplier=multiplier)
-                ranking = bt.get_backtest_ranking(result["MedPosNegRetRatio"], filename=ANALYSIS_FILEPATH,
-                                                  sort_by_column="MedPosNegRetRatio")
+                ranking = bt.get_backtest_ranking(result["TheDfactor"], filename=ANALYSIS_FILEPATH,
+                                                  sort_by_column="TheDfactor")
 
                 # Format dictionary for message
                 for k, v in result.items():

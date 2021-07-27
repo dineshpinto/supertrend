@@ -224,7 +224,7 @@ class TelegramBotManager(FtxClient):
 
     # function to handle errors occurred in the dispatcher
     def error_handler(self, update: object, context: CallbackContext):
-        context.bot.send_message(text=f'An error occurred: {context.error}')
+        context.bot.send_message(char_id=self._chat_id, text=f'An error occurred: {context.error}')
         """Log the error and send a telegram message to notify the developer."""
         # Log the error before we do anything else, so we can see it even if something breaks.
         self.logger.error(msg="Exception while handling an update:", exc_info=context.error)

@@ -148,7 +148,7 @@ def stop_loss_calc(close: float, loss_percent: float, precision: int) -> Tuple[f
     return long_loss, short_loss
 
 
-def plot_and_save_figure(market: str, df: pd.DataFrame, folder_path: str) -> str:
+def plot_and_save_figure(market: str, df: pd.DataFrame, params: dict, folder_path: str) -> str:
     # Plot and save results
     fig, (ax, ax1) = plt.subplots(nrows=2, sharex="all", gridspec_kw={'height_ratios': [3, 1]})
 
@@ -163,7 +163,15 @@ def plot_and_save_figure(market: str, df: pd.DataFrame, folder_path: str) -> str
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%b-%d %H:%m'))
     fig.autofmt_xdate()
-    ax.set_title(market)
+
+    title = f"{market} ("
+    for idx, (key, val) in enumerate(params.items()):
+        title += f"{key}={val}"
+        if idx != len(params) - 1:
+            title += " "
+    title += ")"
+    ax.set_title(title)
+
     plt.close(fig)
     ax.legend()
 

@@ -25,6 +25,7 @@ with open("settings.json") as jsonfile:
 testing = False
 BACKTEST_FOLDER = settings["filepaths"]["backtest_folder"]
 OPTIMIZEDML_FILEPATH = os.path.join(BACKTEST_FOLDER, settings["filepaths"]["optimized_ml_file"])
+ANALYSIS_FILEPATH = os.path.join(BACKTEST_FOLDER, settings["filepaths"]["analysis_file"])
 FIGURE_PATH = os.path.join(settings["filepaths"]["figure_folder"], settings["filepaths"]["figure_subfolder"])
 
 tapi = TelegramAPIManager(group=False)
@@ -35,6 +36,7 @@ while True:
         # Open new FTX Session
         ftx = FtxClient(api_key=API_KEY, api_secret=API_SECRET)
         optimzed_ml = pd.read_csv(OPTIMIZEDML_FILEPATH)
+        market_analysis = pd.read_csv(ANALYSIS_FILEPATH)
 
         # Get list of all markets according to criteria
         markets = []
@@ -64,10 +66,12 @@ while True:
             try:
                 multiplier = optimzed_ml.loc[optimzed_ml['Name'] == market]["Multiplier"].values[0]
                 lookback = optimzed_ml.loc[optimzed_ml['Name'] == market]["Lookback"].values[0]
+                thedfactor = market_analysis.loc[market_analysis["Name"] == market]["TheDfactor"].values[0]
             except IndexError:
                 multiplier = 2
                 lookback = 9
-                text = f"{market} not in optimized ML dataframe, either data is insufficient or database needs to be " \
+                thedfactor = 0
+                text = f"{market} not in optimized dataframe, either data is insufficient or database needs to be " \
                        f"updated. Using default Multiplier={multiplier} and Lookback={lookback}..."
                 logger.warning(text)
 
@@ -80,8 +84,8 @@ while True:
             df["ema200"] = spt.calculate_ema(df.close, time_period=200)
             df["vol_ema200"] = spt.calculate_ema(df.volume, time_period=200)
 
-            figure_path = spt.plot_and_save_figure(market, df, folder_path=FIGURE_PATH)
-
+            params = {"Multiplier": multiplier, "Lookback": lookback, "TheDfactor": thedfactor}
+            figure_path = spt.plot_and_save_figure(market, df, params, folder_path=FIGURE_PATH)
             # Set precision for orders
             precision = len(str(df.close[0]).split(".")[1])
 
@@ -159,7 +163,9 @@ while True:
                         tapi.send_photo(figure_path, caption=close_position_text)
                 if testing:
                     break
+
     except Exception as exc:
+        logger.error(f"{exc}")
         tapi.send_message(f"Exception: {exc}")
 
     logger.info("Sleeping for 4 hours")

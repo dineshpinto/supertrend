@@ -37,7 +37,7 @@ def optimize_m_l(df: pd.DataFrame, optimize_to: str = "PosNegRetRatio") -> dict:
                  "MedPosReturns", "MedPosNegRetRatio", "TheDfactor"])
 
     multipliers = [3, 4]
-    lookbacks = [9, 10, 11]
+    lookbacks = [10, 11]
 
     for multiplier, lookback in itertools.product(multipliers, lookbacks):
         profits = backtest_dataframe(df, look_back=lookback, multiplier=multiplier)

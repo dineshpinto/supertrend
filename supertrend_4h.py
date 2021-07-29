@@ -68,8 +68,8 @@ while True:
                 lookback = optimzed_ml.loc[optimzed_ml['Name'] == market]["Lookback"].values[0]
                 thedfactor = market_analysis.loc[market_analysis["Name"] == market]["TheDfactor"].values[0]
             except IndexError:
-                multiplier = 2
-                lookback = 9
+                multiplier = 3
+                lookback = 10
                 thedfactor = 0
                 text = f"{market} not in optimized dataframe, either data is insufficient or database needs to be " \
                        f"updated. Using default Multiplier={multiplier} and Lookback={lookback}..."

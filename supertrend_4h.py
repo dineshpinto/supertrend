@@ -106,6 +106,7 @@ while True:
                 new_position = {
                     "market": market,
                     "interval": "4h",
+                    "funding_rate": ftx.get_last_funding_rate(market),
                     "entry": df.close[-1],
                     "stop_loss": stop_loss,
                 }

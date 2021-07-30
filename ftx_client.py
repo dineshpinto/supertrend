@@ -116,6 +116,10 @@ class FtxClient:
     def get_account_info(self) -> dict:
         return self._get(f'account')
 
+    def get_last_funding_rate(self, market: str) -> dict:
+        start_time = int(round((datetime.datetime.now() - datetime.timedelta(hours=1)).timestamp()))
+        return self._get(f"funding_rates", {"future": market, "start_time": start_time})[0]["rate"]
+
     def get_historical_prices(self, market: str, resolution: int, start_time: int) -> dict:
         return self._get(f'markets/{market}/candles', {'resolution': resolution, "start_time": start_time})
 

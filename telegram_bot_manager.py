@@ -104,7 +104,8 @@ class TelegramBotManager(FtxClient):
         update.message.reply_text('Start command received')
 
     # function to handle the /help command
-    def help(self, update: Update, _: CallbackContext):
+    @staticmethod
+    def help(update: Update, _: CallbackContext):
         msg = "The following commands are available:\n" \
               "/backtest: Backtest a market\n" \
               "/rankings: Get market rankings*\n" \
@@ -114,7 +115,7 @@ class TelegramBotManager(FtxClient):
               "/account: Current percent of account used*\n" \
               "/help: This help page\n" \
               "*Pass arguments: command <argument>"
-        self.send_msg(msg)
+        update.message.reply_text(msg)
 
     @staticmethod
     def get_rankings(update: Update, context: CallbackContext):
@@ -333,7 +334,7 @@ class TelegramBotManager(FtxClient):
         # run the bot until Ctrl-C
         self._updater.idle()
 
-    def exit(self, update: Update, context: CallbackContext):
+    def exit(self, update: Update, _: CallbackContext):
         try:
             text = f'Shutting down bot'
             self.logger.info(text)

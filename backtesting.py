@@ -144,7 +144,7 @@ def profits_analysis(profits: np.ndarray, drawdown: np.ndarray) -> dict:
         "MedNegReturns": med_neg_return,
         "MedPosReturns": med_pos_return,
         "MedPosNegRetRatio": med_pos_neg_ratio,
-        "TheDfactor": med_pos_neg_ratio / avg_drawdown
+        "TheDfactor": med_pos_neg_ratio / (avg_drawdown * np.size(profits))
     }
     return result
 

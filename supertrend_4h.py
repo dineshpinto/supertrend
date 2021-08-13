@@ -12,6 +12,7 @@ import supertrend as spt
 from config import API_KEY, API_SECRET
 from ftx_client import FtxClient
 from telegram_api_manager import TelegramAPIManager
+import backtesting as bt
 
 plt.ioff()
 
@@ -52,10 +53,7 @@ while True:
                 continue
             os.remove(os.path.join(FIGURE_PATH, filename))
 
-        pbar = tqdm(markets)
-        for market in pbar:
-            pbar.set_description(market)
-
+        for market in markets:
             df = ftx.get_historical_market_data(market, interval=settings["analysis"]["interval"],
                                                 start_time=settings["analysis"]["start_time"])
 
@@ -68,12 +66,12 @@ while True:
                 lookback = optimzed_ml.loc[optimzed_ml['Name'] == market]["Lookback"].values[0]
                 thedfactor = market_analysis.loc[market_analysis["Name"] == market]["TheDfactor"].values[0]
             except IndexError:
-                multiplier = 3
-                lookback = 10
-                thedfactor = 0
-                text = f"{market} not in optimized dataframe, either data is insufficient or database needs to be " \
-                       f"updated. Using default Multiplier={multiplier} and Lookback={lookback}..."
-                logger.warning(text)
+                result = bt.optimize_m_l(df, optimize_to="TheDfactor", return_optimize_to=True)
+                multiplier = result["Multiplier"]
+                lookback = result["Lookback"]
+                thedfactor = result["TheDfactor"]
+                text = f"{market} optimized to Multiplier={multiplier} and Lookback={lookback}, TheDfactor={thedfactor}"
+                logger.info(text)
 
             # Perform supertrend analysis
             df["st"], df["upt"], df["dt"] = spt.supertrend_analysis(df.high, df.low, df.close, look_back=lookback,
@@ -84,7 +82,7 @@ while True:
             df["ema200"] = spt.calculate_ema(df.close, time_period=200)
             df["vol_ema200"] = spt.calculate_ema(df.volume, time_period=200)
 
-            params = {"Multiplier": multiplier, "Lookback": lookback, "TheDfactor": thedfactor}
+            params = {"Multiplier": int(multiplier), "Lookback": int(lookback), "TheDfactor": float(thedfactor)}
             figure_path = spt.plot_and_save_figure(market, df, params, folder_path=FIGURE_PATH)
             # Set precision for orders
             precision = len(str(df.close[0]).split(".")[1])

@@ -166,7 +166,10 @@ def plot_and_save_figure(market: str, df: pd.DataFrame, params: dict, folder_pat
 
     title = f"{market} ("
     for idx, (key, val) in enumerate(params.items()):
-        title += f"{key}={val}"
+        if isinstance(val, float):
+            title += f"{key}={val:.2f}"
+        else:
+            title += f"{key}={val}"
         if idx != len(params) - 1:
             title += " "
     title += ")"

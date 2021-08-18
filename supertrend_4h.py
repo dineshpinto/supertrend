@@ -6,13 +6,12 @@ import time
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from tqdm import tqdm
 
+import backtesting as bt
 import supertrend as spt
 from config import API_KEY, API_SECRET
 from ftx_client import FtxClient
 from telegram_api_manager import TelegramAPIManager
-import backtesting as bt
 
 plt.ioff()
 
@@ -137,7 +136,7 @@ while True:
                 _, slowd = spt.calculate_stoch_rsi(df)
                 new_position["stoch_rsi"] = int(slowd[-1])
 
-                logger.info(new_position)
+                logger.info(f"New Position: {new_position}")
                 tapi.send_photo(figure_path, caption=json.dumps(new_position, indent=2, default=str))
                 trades.append(new_position)
 

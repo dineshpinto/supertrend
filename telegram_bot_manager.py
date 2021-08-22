@@ -49,6 +49,8 @@ class TelegramBotManager(FtxClient):
         self.dispatcher.add_handler(CommandHandler("takeprofit", self.modify_take_profit))
         self.dispatcher.add_handler(CommandHandler("stoploss", self.modify_stop_loss))
         self.dispatcher.add_handler(CommandHandler("account", self.modify_account_percent))
+        self.dispatcher.add_handler(CommandHandler("startreminder", self.update_backtest_reminder_start))
+        self.dispatcher.add_handler(CommandHandler("stopreminder", self.update_backtest_reminder_stop))
         self.dispatcher.add_handler(CommandHandler("stop", self.exit))
 
         # add an handler for normal text (not commands)
@@ -104,7 +106,8 @@ class TelegramBotManager(FtxClient):
         update.message.reply_text('Start command received')
 
     # function to handle the /help command
-    def help(self, update: Update, _: CallbackContext):
+    @staticmethod
+    def help(update: Update, _: CallbackContext):
         msg = "The following commands are available:\n" \
               "/backtest: Backtest a market\n" \
               "/rankings: Get market rankings*\n" \
@@ -114,7 +117,7 @@ class TelegramBotManager(FtxClient):
               "/account: Current percent of account used*\n" \
               "/help: This help page\n" \
               "*Pass arguments: command <argument>"
-        self.send_msg(msg)
+        update.message.reply_text(msg)
 
     @staticmethod
     def get_rankings(update: Update, context: CallbackContext):
@@ -317,6 +320,25 @@ class TelegramBotManager(FtxClient):
         update.message.reply_text(f'Orders placed successfully!')
         STATE = None
 
+    def _update_backtest_reminder(self, context: CallbackContext):
+        context.bot.send_message(chat_id=self._chat_id, text="It's been a week since my lists were last updated, "
+                                                             "please update me")
+
+    def update_backtest_reminder_start(self, update: Update, context: CallbackContext):
+        # 5 day interval
+        interval_in_days = 5
+        self._updater.bot.send_message(chat_id=update.message.chat_id,
+                                       text=f"Setting backtest reminder every {interval_in_days} days")
+        interval_in_s = interval_in_days * 3600 * 24
+        context.job_queue.run_repeating(self._update_backtest_reminder, context=update.message.chat_id,
+                                        interval=int(interval_in_s))
+
+    def update_backtest_reminder_stop(self, update: Update, context: CallbackContext):
+        # 5 day interval
+        self._updater.bot.send_message(chat_id=update.message.chat_id,
+                                       text=f"Stopping backtest reminder")
+        context.job_queue.stop()
+
     # function to handle normal text
     def text(self, update: Update, context: CallbackContext):
         global STATE
@@ -333,7 +355,7 @@ class TelegramBotManager(FtxClient):
         # run the bot until Ctrl-C
         self._updater.idle()
 
-    def exit(self, update: Update, context: CallbackContext):
+    def exit(self, update: Update, _: CallbackContext):
         try:
             text = f'Shutting down bot'
             self.logger.info(text)

@@ -30,7 +30,7 @@ def get_drawdown(positions: list, high: np.ndarray, low: np.ndarray) -> np.ndarr
     return np.array(drawdown)
 
 
-def optimize_m_l(df: pd.DataFrame, optimize_to: str = "PosNegRetRatio") -> dict:
+def optimize_m_l(df: pd.DataFrame, optimize_to: str = "TheDfactor", return_optimize_to: bool = False) -> dict:
     analysis_df = pd.DataFrame(
         columns=["M_L", "AvgReturns", "StdDev", "RetDevRatio", "MinReturns", "MaxReturns",
                  "AvgNegReturns", "AvgPosReturns", "PosNegRetRatio", "MedReturns", "MedNegReturns",
@@ -47,7 +47,12 @@ def optimize_m_l(df: pd.DataFrame, optimize_to: str = "PosNegRetRatio") -> dict:
     analysis_df = analysis_df.sort_values(optimize_to, ascending=False)
     analysis_df = analysis_df.reset_index(drop=True)
     opt_multiplier, opt_lookback = [int(val) for val in analysis_df["M_L"][0].split("_")]
-    return {"Multiplier": opt_multiplier, "Lookback": opt_lookback}
+
+    if not return_optimize_to:
+        return {"Multiplier": opt_multiplier, "Lookback": opt_lookback}
+    else:
+        optimized_to_value = backtest_dataframe(df, look_back=opt_lookback, multiplier=opt_multiplier)[optimize_to]
+        return {"Multiplier": opt_multiplier, "Lookback": opt_lookback, f"{optimize_to}": optimized_to_value}
 
 
 def short_strategy(pos: dict, strategy: str) -> bool:
@@ -144,7 +149,7 @@ def profits_analysis(profits: np.ndarray, drawdown: np.ndarray) -> dict:
         "MedNegReturns": med_neg_return,
         "MedPosReturns": med_pos_return,
         "MedPosNegRetRatio": med_pos_neg_ratio,
-        "TheDfactor": med_pos_neg_ratio / avg_drawdown
+        "TheDfactor": med_pos_neg_ratio / (avg_drawdown * np.size(profits))
     }
     return result
 

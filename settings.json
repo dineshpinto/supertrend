@@ -8,7 +8,7 @@
         "trades_file": "trades_4h.json"
     },
     "markets": {
-        "min_volume_usd_24h": 2e7,
+        "min_volume_usd_24h": 1e7,
         "blacklist": ["USDT-PERP"]
     },
     "analysis": {

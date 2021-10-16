@@ -31,6 +31,25 @@ FIGURE_PATH = os.path.join(settings["filepaths"]["figure_folder"], settings["fil
 tapi = TelegramAPIManager(group=False)
 trades = []
 
+
+def markdown_format_message(position: dict) -> str:
+    for key, value in position.items():
+        value = str(value)
+        if "-" in value:
+            value = value.replace("-", "\-")
+        if "." in value:
+            value = value.replace(".", "\.")
+        position[key] = value
+
+    msg_text = f"*{position['market']} \({position['side'].upper()}\)*\n " \
+               f"_Entry_ @ ${position['entry']}\n" \
+               f"_Stop Loss_ @ ${position['stop_loss']}\n" \
+               f"_10% Profit_ @ ${position['10pctprofit']}\n" \
+               f"_Funding Rate_ \= {position['funding_rate']}\n" \
+               f"_Stoch\. RSI_ \= {position['stoch_rsi']}"
+    return msg_text
+
+
 while True:
     try:
         # Open new FTX Session
@@ -137,7 +156,7 @@ while True:
                 new_position["stoch_rsi"] = int(slowd[-1])
 
                 logger.info(f"New Position: {new_position}")
-                tapi.send_photo(figure_path, caption=json.dumps(new_position, indent=2, default=str))
+                tapi.send_photo(figure_path, caption=markdown_format_message(new_position), markdown=True)
                 trades.append(new_position)
 
                 with open(settings["filepaths"]["trades_file"], 'w') as json_file:

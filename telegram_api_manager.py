@@ -25,11 +25,18 @@ class TelegramAPIManager:
                        f' {"group" if group else "personal"} chat id'
         self.logger.info(startup_text)
 
-    def send_message(self, text: str) -> telegram.Message:
-        return self.bot.send_message(self.chat_id, text)
+    def send_message(self, text: str, markdown: bool = False) -> telegram.Message:
+        if markdown:
+            return self.bot.send_message(self.chat_id, text, parse_mode=telegram.ParseMode.MARKDOWN_V2)
+        else:
+            return self.bot.send_message(self.chat_id, text)
 
-    def send_photo(self, image_path: str, caption: str = None) -> telegram.Message:
-        return self.bot.send_photo(self.chat_id, photo=open(image_path, "rb"), caption=caption)
+    def send_photo(self, image_path: str, caption: str = None, markdown: bool = False) -> telegram.Message:
+        if markdown:
+            return self.bot.send_photo(self.chat_id, photo=open(image_path, "rb"), caption=caption,
+                                       parse_mode=telegram.ParseMode.MARKDOWN_V2)
+        else:
+            return self.bot.send_photo(self.chat_id, photo=open(image_path, "rb"), caption=caption)
 
     def send_video(self, video_path: str, caption: str = None) -> telegram.Message:
         return self.bot.send_video(self.chat_id, video=open(video_path, "rb"), supports_streaming=True, caption=caption)

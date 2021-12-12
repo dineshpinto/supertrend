@@ -19,6 +19,9 @@ def str_to_datetime(str_days_ago: str) -> datetime.datetime:
     elif len(split_string) == 1 and split_string[0].lower() == 'yesterday':
         date = now - relativedelta(days=1)
         return date
+    elif split_string[1].lower() in ['moinute', 'minutes', 'mins']:
+        date = datetime.datetime.now() - relativedelta(minutes=int(split_string[0]))
+        return date
     elif split_string[1].lower() in ['hour', 'hours', 'hr', 'hrs', 'h']:
         date = datetime.datetime.now() - relativedelta(hours=int(split_string[0]))
         return date
